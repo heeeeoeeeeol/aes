@@ -17,41 +17,21 @@ class AES:
         # make a call to key expansion and declare rk[] 
 
     # key to 2d array (state should be initialized as matrix)
-    """
     def to2dArray(self, str):
         hex = [str[i:i+2] for i in range(0, len(str), 2)]
 
-        arr = [[0] * self.nk for i in range(4)]
-        
-    #    i = 0 
-        for c in range(self.nk):
-            for r in range(4):
-                arr[r][c] = "0x{:02x}".format(int(hex[r + 4 * c], 16))
-    #            i += 1
-        
-        return arr
-    """
-    def to2dArray(self, str):
-        hex = [str[i:i+2] for i in range(0, len(str), 2)]
-
-    #   arr = [[0] * 4 for i in range(self.nk)]
         iter = len(str) // 8 
         arr = [[0] * 4 for i in range(iter)]
 
-    #   i = 0 
-    #   for c in range(self.nk):
         for c in range(iter):
             for r in range(4):
-    #           arr[c][r] = "0x{:02x}".format(int(hex[r + 4 * c], 16))
                 arr[c][r] = int(hex[r + 4 * c], 16)
-    #           i += 1
         return arr
 
     def toString(self, arr):
         str = ''
         for c in range(len(arr)):
             for r in range(4):
-            #   str += hex(arr[c][r]).lstrip("0x") 
                 str += "{:02x}".format(arr[c][r])
         return str
 
@@ -94,29 +74,15 @@ class AES:
     ]
 
     # substitution step, uses table defined above
-    """
-    def SubBytes(self, s):
-        for r in range(4):
-            for c in range(4):
-                s[r][c] = self.sbox[s[r][c]]
-        return s
-    """
+
     def SubBytes(self):
         for c in range(4):
             for r in range(4):
                 self.s[c][r] = self.sbox[self.s[c][r]]    
-    #   self.states.append(copy.deepcopy(self.s))
         return self.s
 
 
     # permutation step 1, cyclically shifts last 3 rows by incrementing amounts (fig 8)
-    """
-    def ShiftRows(self, s):
-        for r in range(1, 4):
-            for i in range(r):
-                s[r].append(s[r].pop(0))
-        return s
-    """
     def ShiftRows(self):
         for r in range(4):
             for i in range(r):
@@ -124,7 +90,6 @@ class AES:
                 for c in range(1, 4):
                     self.s[c - 1][r] = self.s[c][r]
                 self.s[3][r] = temp
-    #   self.states.append(copy.deepcopy(self.s))
         return self.s
     
     # helper function for MixColumns & inverse, needed for galois field multiplication (sec 5.1.3)
@@ -141,20 +106,6 @@ class AES:
         return p % 256
 
     # permutation step 2, cycle through columns and multiply by finite field matrix (sec 5.1.3)
-    """
-    def MixColumns(self, s):
-        for c in range(4):
-            s0 = s[0][c]
-            s1 = s[1][c]
-            s2 = s[2][c]
-            s3 = s[3][c]
-
-            s[0][c] = self.GF(s0, 0x02) ^ self.GF(s1, 0x03) ^ s2 ^ s3
-            s[1][c] = s0 ^ self.GF(s1, 0x02) ^ self.GF(s2, 0x03) ^ s3
-            s[2][c] = s0 ^ s1 ^ self.GF(s2, 0x02) ^ self.GF(s3, 0x03)
-            s[3][c] = self.GF(s0, 0x03) ^ s1 ^ s2 ^ self.GF(s3, 0x02)
-        return s
-    """
     def MixColumns(self):
         for c in range(4):
             s0 = self.s[c][0]
@@ -166,23 +117,14 @@ class AES:
             self.s[c][1] = s0 ^ self.GF(s1, 0x02) ^ self.GF(s2, 0x03) ^ s3
             self.s[c][2] = s0 ^ s1 ^ self.GF(s2, 0x02) ^ self.GF(s3, 0x03)
             self.s[c][3] = self.GF(s0, 0x03) ^ s1 ^ s2 ^ self.GF(s3, 0x02)
-    #   self.states.append(copy.deepcopy(self.s))
         return self.s
 
     # subkey is added to state with bitwise XOR (fig 10)
     # no separate inverse function needed as it operates solely on XOR 
-    """
-    def AddRoundKey(self, s, rk):
-        for r in range(4):
-            for c in range (4):
-                s[r][c] ^= rk[r][c]
-        return s
-    """
     def AddRoundKey(self, i):
         for c in range(4):
             for r in range (4):
                 self.s[c][r] ^= self.rk[i][c][r]
-    #   self.states.append(copy.deepcopy(self.s))
         return self.s
     
     
@@ -251,13 +193,6 @@ class AES:
         return self.s    
     
     # inverse of ShiftRows (fig 13)
-    """
-    def InvShiftRows(self, s):
-        for r in range(1, 4):
-            for i in range(r):
-                s[r].insert(0, s[r].pop())
-        return s
-    """
     def InvShiftRows(self):
         for r in range(4):
             for i in range(r):
@@ -289,13 +224,6 @@ class AES:
     ]
 
     # inverse of SubBytes
-    """
-    def InvSubBytes(self, s):
-        for r in range(4):
-            for c in range(4):
-                s[r][c] = self.invSbox[s[r][c]]
-        return s
-    """
     def InvSubBytes(self):
         for c in range(4):
             for r in range(4):
@@ -303,20 +231,6 @@ class AES:
         return self.s
     
     # inverse of MixColumns (sec 5.3.3)
-    """
-    def InvMixColumns(self, s):
-        for c in range(4):
-            s0 = s[0][c]
-            s1 = s[1][c]
-            s2 = s[2][c]
-            s3 = s[3][c]
-
-            s[0][c] = self.GF(s0, 0x0e) ^ self.GF(s1, 0x0b) ^ self.GF(s2, 0x0d) ^ self.GF(s3, 0x09)
-            s[1][c] = self.GF(s0, 0x09) ^ self.GF(s1, 0x0e) ^ self.GF(s2, 0x0b) ^ self.GF(s3, 0x0d)
-            s[2][c] = self.GF(s0, 0x0d) ^ self.GF(s1, 0x09) ^ self.GF(s2, 0x0e) ^ self.GF(s3, 0x0b)
-            s[3][c] = self.GF(s0, 0x0b) ^ self.GF(s1, 0x0d) ^ self.GF(s2, 0x09) ^ self.GF(s3, 0x0e)
-        return s
-    """
     def InvMixColumns(self):
         for c in range(4):
             s0 = self.s[c][0]
