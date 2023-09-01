@@ -1,5 +1,6 @@
 import copy
 
+
 class AES:
     # constructor 
     def __init__(self, inp, key):
@@ -9,12 +10,12 @@ class AES:
         elif len(key) == 48: self.nr, self.nk = 12, 6
         elif len(key) == 64: self.nr, self.nk = 14, 8
         else: raise ValueError("key length should be 16 24 or 32")
-        self.s = self.to2dArray(inp)
-        self.k = self.to2dArray(key) 
-        self.rk = self.SplitKey(self.KeyExpansion())
-        self.states = [] # testing
-        self.states.append(copy.deepcopy(self.s))
-        # make a call to key expansion and declare rk[] 
+        self.s = self.to2dArray(inp) # state
+        self.s_init = self.to2dArray(inp) # testing
+        self.k = self.to2dArray(key) # key
+        self.rk = self.SplitKey(self.KeyExpansion()) # round keys        
+        self.r = [] # rounds (testing)
+        self.ir = [] # inverse rounds (testing)
 
     # key to 2d array (state should be initialized as matrix)
     def to2dArray(self, str):
@@ -28,6 +29,7 @@ class AES:
                 arr[c][r] = int(hex[r + 4 * c], 16)
         return arr
 
+    # turn 2d array back to bytes
     def toString(self, arr):
         str = ''
         for c in range(len(arr)):
@@ -37,20 +39,22 @@ class AES:
 
     # encoder function 
     def Cipher(self):
-        self.states.append(copy.deepcopy(self.rk[0]))
-        self.states.append(copy.deepcopy(self.AddRoundKey(0)))
-
+        self.r.append("CIPHER (ENCRYPT):")
+        self.r.append(f"round[ 0].input    {self.toString(copy.deepcopy(self.s))}")
+        self.r.append(f"round[ 0].k_sch    {self.toString(copy.deepcopy(self.rk[0]))}")
+        self.r.append(f"round[ 1].start    {self.toString(copy.deepcopy(self.AddRoundKey(0)))}")
+     
         for i in range(1, self.nr): 
-            self.states.append(copy.deepcopy(self.SubBytes()))
-            self.states.append(copy.deepcopy(self.ShiftRows()))
-            self.states.append(copy.deepcopy(self.MixColumns()))
-            self.states.append(copy.deepcopy(self.rk[i]))
-            self.states.append(copy.deepcopy(self.AddRoundKey(i)))
+            self.r.append(f"round[{f' {i}' if i < 10 else i}].s_box    {self.toString(copy.deepcopy(self.SubBytes()))}")
+            self.r.append(f"round[{f' {i}' if i < 10 else i}].s_row    {self.toString(copy.deepcopy(self.ShiftRows()))}")
+            self.r.append(f"round[{f' {i}' if i < 10 else i}].m_col    {self.toString(copy.deepcopy(self.MixColumns()))}")
+            self.r.append(f"round[{f' {i}' if i < 10 else i}].k_sch    {self.toString(copy.deepcopy(self.rk[i]))}")
+            self.r.append(f"round[{f' {i+1}' if i < 9 else i+1}].start    {self.toString(copy.deepcopy(self.AddRoundKey(i)))}")
 
-        self.states.append(copy.deepcopy(self.SubBytes()))
-        self.states.append(copy.deepcopy(self.ShiftRows()))
-        self.states.append(copy.deepcopy(self.rk[self.nr]))
-        self.states.append(copy.deepcopy(self.AddRoundKey(self.nr)))
+        self.r.append(f"round[{self.nr}].s_box    {self.toString(copy.deepcopy(self.SubBytes()))}")
+        self.r.append(f"round[{self.nr}].s_row    {self.toString(copy.deepcopy(self.ShiftRows()))}")
+        self.r.append(f"round[{self.nr}].k_sch    {self.toString(copy.deepcopy(self.rk[self.nr]))}")
+        self.r.append(f"round[{self.nr}].output   {self.toString(copy.deepcopy(self.AddRoundKey(self.nr)))}")
         return self.s
 
     # S-box table for SubBytes (fig 7)
@@ -74,7 +78,6 @@ class AES:
     ]
 
     # substitution step, uses table defined above
-
     def SubBytes(self):
         for c in range(4):
             for r in range(4):
@@ -179,17 +182,22 @@ class AES:
     
     # inverse cipher, decoder
     def InvCipher(self):
-        self.AddRoundKey(self.nr)
+        self.ir.append("INVERSE CIPHER (DECRYPT):")
+        self.ir.append(f"round[ 0].iinput   {self.toString(copy.deepcopy(self.s))}")
+        self.ir.append(f"round[ 0].ik_sch   {self.toString(copy.deepcopy(self.rk[self.nr]))}")
+        self.ir.append(f"round[ 1].istart   {self.toString(copy.deepcopy(self.AddRoundKey(self.nr)))}")
+     
+        for i in range(1, self.nr): 
+            self.ir.append(f"round[{f' {i}' if i < 10 else i}].is_row   {self.toString(copy.deepcopy(self.InvShiftRows()))}")            
+            self.ir.append(f"round[{f' {i}' if i < 10 else i}].is_box   {self.toString(copy.deepcopy(self.InvSubBytes()))}")
+            self.ir.append(f"round[{f' {i}' if i < 10 else i}].ik_sch   {self.toString(copy.deepcopy(self.rk[self.nr-i]))}")            
+            self.ir.append(f"round[{f' {i}' if i < 10 else i}].ik_add   {self.toString(copy.deepcopy(self.AddRoundKey(self.nr-i)))}")
+            self.ir.append(f"round[{f' {i+1}' if i < 9 else i+1}].istart   {self.toString(copy.deepcopy(self.InvMixColumns()))}")
 
-        for i in range(self.nr-1, 0, -1): 
-            self.InvShiftRows()
-            self.InvSubBytes()
-            self.AddRoundKey(i)
-            self.InvMixColumns()
-
-        self.InvShiftRows()
-        self.InvSubBytes()
-        self.AddRoundKey(0)
+        self.ir.append(f"round[{self.nr}].is_row   {self.toString(copy.deepcopy(self.InvShiftRows()))}")
+        self.ir.append(f"round[{self.nr}].is_box   {self.toString(copy.deepcopy(self.InvSubBytes()))}")
+        self.ir.append(f"round[{self.nr}].ik_sch   {self.toString(copy.deepcopy(self.rk[0]))}")
+        self.ir.append(f"round[{self.nr}].ioutput  {self.toString(copy.deepcopy(self.AddRoundKey(0)))}")
         return self.s    
     
     # inverse of ShiftRows (fig 13)
@@ -253,31 +261,10 @@ class AES:
         return rk[0:8] + ' ' + rk[8:16] + ' ' + rk[16:24] + ' ' + rk[24:32]
     
     # for testing
-    def getStates(self):
-        return self.states
-    
-    # for testing
-    def appendixC(self):
+    def tester(self):
         header = (
-            f"AES-{self.rk * 32} (Nk={self.nk}, Nr={self.nr})\n"
-            f"PLAINTEXT:  {self.toString(self.states[0])}\n"
-            f"KEY:        {self.toString(self.k)}\n"
+            f"AES-{self.nk * 32} (Nk={self.nk}, Nr={self.nr})\n"
+            f"PLAINTEXT:  {self.toString(self.s_init)}\n"
+            f"KEY:        {self.toString(self.k)}"
         )
-        
-        c = [] 
-        c.append("CIPHER (ENCRYPT):")
-        c.append(f"round[ 0].input    {self.toString(self.states[0])}")
-        c.append(f"round[ 0].k_sch    {self.toString(self.states[1])}")
-        for i in range(1, self.nr):
-            c.append(f"round[{f' {i}' if i < 10 else i}].start    {self.toString(self.states[5*i-3])}")
-            c.append(f"round[{f' {i}' if i < 10 else i}].s_box    {self.toString(self.states[5*i-2])}")
-            c.append(f"round[{f' {i}' if i < 10 else i}].s_row    {self.toString(self.states[5*i-1])}")
-            c.append(f"round[{f' {i}' if i < 10 else i}].m_col    {self.toString(self.states[5*i])}")
-            c.append(f"round[{f' {i}' if i < 10 else i}].k_sch    {self.toString(self.states[5*i+1])}")
-        c.append(f"round[{self.nr}].start    {self.toString(self.states[5*i-3])}")
-        c.append(f"round[{self.nr}].s_box    {self.toString(self.states[5*i-2])}")
-        c.append(f"round[{self.nr}].s_row    {self.toString(self.states[5*i-1])}")
-        c.append(f"round[{self.nr}].k_sch    {self.toString(self.states[5*i+1])}")
-        c.append(f"round[{self.nr}].output   {self.toString(self.states[5*i+1])}")
-
-
+        return header + '\n\n' + '\n'.join(self.r) + '\n\n' + '\n'.join(self.ir)      
